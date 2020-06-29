@@ -12,9 +12,9 @@ import os
 
 class PyField(object):
     '''
+    Class implementing all Field II methods.
     '''
     def __init__(self, path=None, quiet=False):
-
         # set default path to location of m-files (where this module is)
         if path is None:
             path = os.path.dirname(os.path.abspath(__file__))
@@ -41,22 +41,24 @@ class PyField(object):
         self._mateng.cd(str(os.path.normpath(path)), nargout=0)
 
     def __del__(self):
-
         # self.field_end() # end FIELD II
         self._mateng.quit()  # shutdown MATLAB engine
 
     def _numpy_to_mat(self, array, orient='row'):
+        '''
+        Converts numpy array to 2d matlab array.
+        '''
+        array = np.atleast_2d(array)
+        assert array.ndim == 2
 
-        if array.ndim == 1:
-            if orient.lower() == 'row':
-                sz = (1, array.size)
-            elif orient.lower() in ('col', 'column'):
-                sz = (array.size, 1)
-        else:
-            sz = None
+        if orient.lower() == 'row':
+            if array.shape[1] == 1:
+                array = array.T
+        elif orient.lower() in ('col', 'column'):
+            if array.shape[0] == 1:
+                array = array.T
 
-        ret = matlab.double(initializer=array.tolist(), size=sz)
-        return ret
+        return matlab.double(initializer=array.tolist(), size=array.shape)
 
     def _mat_to_numpy(self, array):
         return np.array(array).squeeze()
@@ -93,7 +95,6 @@ class PyField(object):
 
         points_mat = self._numpy_to_mat(points, orient='row')
         amplitudes_mat = self._numpy_to_mat(amplitudes, orient='col')
-
         ret = self._mateng.calc_scat(Th1,
                                      Th2,
                                      points_mat,
@@ -109,7 +110,6 @@ class PyField(object):
 
         points_mat = self._numpy_to_mat(points, orient='row')
         amplitudes_mat = self._numpy_to_mat(amplitudes, orient='col')
-
         ret = self._mateng.calc_scat_all(Th1,
                                          Th2,
                                          points_mat,
@@ -119,14 +119,12 @@ class PyField(object):
 
         scat = self._mat_to_numpy(ret[0])
         t0 = ret[1]
-
         return scat, t0
 
     def calc_scat_multi(self, Th1, Th2, points, amplitudes):
 
         points_mat = self._numpy_to_mat(points, orient='row')
         amplitudes_mat = self._numpy_to_mat(amplitudes, orient='col')
-
         ret = self._mateng.calc_scat_multi(Th1,
                                            Th2,
                                            points_mat,
@@ -135,40 +133,33 @@ class PyField(object):
 
         scat = self._mat_to_numpy(ret[0])
         t0 = ret[1]
-
         return scat, t0
 
     def calc_h(self, Th, points):
 
         points_mat = self._numpy_to_mat(points, orient='row')
-
         ret = self._mateng.calc_h(Th, points_mat, nargout=2)
 
         h = self._mat_to_numpy(ret[0])
         t0 = ret[1]
-
         return h, t0
 
     def calc_hp(self, Th, points):
 
         points_mat = self._numpy_to_mat(points, orient='row')
-
         ret = self._mateng.calc_hp(Th, points_mat, nargout=2)
 
         hp = self._mat_to_numpy(ret[0])
         t0 = ret[1]
-
         return hp, t0
 
     def calc_hhp(self, Th1, Th2, points):
 
         points_mat = self._numpy_to_mat(points, orient='row')
-
         ret = self._mateng.calc_hhp(Th1, Th2, points_mat, nargout=2)
 
         hhp = self._mat_to_numpy(ret[0])
         t0 = ret[1]
-
         return hhp, t0
 
     # XDC FUNCTIONS #
@@ -178,7 +169,6 @@ class PyField(object):
 
         enabled_mat = self._numpy_to_mat(enabled, orient='row')
         focus_mat = self._numpy_to_mat(focus, orient='row')
-
         return self._mateng.xdc_2d_array(no_elem_x,
                                          no_elem_y,
                                          width,
@@ -192,7 +182,6 @@ class PyField(object):
                                          nargout=1)
 
     def xdc_apodization(self, Th, times, values):
-
         times_mat = self._numpy_to_mat(times, orient='col')
         values_mat = self._numpy_to_mat(values, orient='row')
         self._mateng.xdc_apodization(Th, times_mat, values_mat, nargout=0)
@@ -246,7 +235,6 @@ class PyField(object):
 
         heights_mat = self._numpy_to_mat(heights, orient='row')
         focus_mat = self._numpy_to_mat(focus, orient='row')
-
         return self._mateng.xdc_convex_focused_multirow(no_elem_x,
                                                         width,
                                                         no_elem_y,
@@ -272,31 +260,27 @@ class PyField(object):
 
         times_mat = self._numpy_to_mat(times, orient='col')
         points_mat = self._numpy_to_mat(points, orient='row')
-
         self._mateng.xdc_focus(Th, times_mat, points_mat, nargout=0)
 
     def xdc_focus_times(self, Th, times, delays):
 
         times_mat = self._numpy_to_mat(times, orient='col')
         delays_mat = self._numpy_to_mat(delays, orient='row')
-
         self._mateng.xdc_focus_times(Th, times_mat, delays_mat, nargout=0)
 
     def xdc_focused_array(self, no_elements, width, height, kerf, rfocus,
                           no_sub_x, no_sub_y, focus):
 
         focus_mat = self._numpy_to_mat(focus, orient='row')
-
-        ret = self._mateng.xdc_focused_array(no_elements,
-                                             width,
-                                             height,
-                                             kerf,
-                                             rfocus,
-                                             no_sub_x,
-                                             no_sub_y,
-                                             focus_mat,
-                                             nargout=1)
-        return ret
+        return self._mateng.xdc_focused_array(no_elements,
+                                              width,
+                                              height,
+                                              kerf,
+                                              rfocus,
+                                              no_sub_x,
+                                              no_sub_y,
+                                              focus_mat,
+                                              nargout=1)
 
     def xdc_focused_multirow(self, no_elem_x, width, no_elem_y, heights,
                              kerf_x, kerf_y, Rfocus, no_sub_x, no_sub_y,
@@ -304,7 +288,6 @@ class PyField(object):
 
         heights_mat = self._numpy_to_mat(heights, orient='row')
         focus_mat = self._numpy_to_mat(focus, orient='row')
-
         return self._mateng.xdc_focused_multirow(no_elem_x,
                                                  width,
                                                  no_elem_y,
@@ -321,10 +304,8 @@ class PyField(object):
         self._mateng.xdc_free(Th, nargout=0)
 
     def xdc_get(self, Th, info_type='rect'):
-
-        ret = self._mat_to_numpy(self._mateng.xdc_get(Th, info_type,
-                                                      nargout=1))
-        return ret
+        return self._mat_to_numpy(
+            self._mateng.xdc_get(Th, info_type, nargout=1))
 
     def xdc_impulse(self, Th, pulse):
 
@@ -338,22 +319,19 @@ class PyField(object):
                          no_sub_y, focus):
 
         focus_mat = self._numpy_to_mat(focus, orient='row')
-        ret = self._mateng.xdc_linear_array(no_elements,
-                                            width,
-                                            height,
-                                            kerf,
-                                            no_sub_x,
-                                            no_sub_y,
-                                            focus_mat,
-                                            nargout=1)
-        return ret
+        return self._mateng.xdc_linear_array(no_elements,
+                                             width,
+                                             height,
+                                             kerf,
+                                             no_sub_x,
+                                             no_sub_y,
+                                             focus_mat,
+                                             nargout=1)
 
     def xdc_linear_multirow(self, no_elem_x, width, no_elem_y, heights, kerf_x,
                             kerf_y, no_sub_x, no_sub_y, focus):
-
         heights_mat = self._numpy_to_mat(heights, orient='row')
         focus_mat = self._numpy_to_mat(focus, orient='row')
-
         return self._mateng.xdc_linear_multirow(no_elem_x,
                                                 width,
                                                 no_elem_y,
@@ -366,17 +344,16 @@ class PyField(object):
                                                 nargout=1)
 
     def xdc_lines(self, lines, center, focus):
-
         lines_mat = self._numpy_to_mat(lines, orient='row')
         center_mat = self._numpy_to_mat(center, orient='row')
         focus_mat = self._numpy_to_mat(focus, orient='row')
-
-        self._mateng.xdc_lines(lines_mat, center_mat, focus_mat, nargout=0)
+        return self._mateng.xdc_lines(lines_mat,
+                                      center_mat,
+                                      focus_mat,
+                                      nargout=1)
 
     def xdc_piston(self, radius, ele_size):
-
-        ret = self._mateng.xdc_piston(radius, ele_size)
-        return ret
+        return self._mateng.xdc_piston(radius, ele_size, nargout=1)
 
     def xdc_quantization(self, Th, value):
         self._mateng.xdc_quantization(Th, value, nargout=0)
@@ -387,30 +364,27 @@ class PyField(object):
         center_mat = self._numpy_to_mat(center, orient='row')
         focus_mat = self._numpy_to_mat(focus, orient='row')
 
-        ret = self._mateng.xdc_rectangles(rect_mat,
-                                          center_mat,
-                                          focus_mat,
-                                          nargout=1)
-
-        return ret
+        return self._mateng.xdc_rectangles(rect_mat,
+                                           center_mat,
+                                           focus_mat,
+                                           nargout=1)
 
     def xdc_show(self, Th, info_type='all'):
         self._mateng.xdc_show(Th, info_type, nargout=0)
 
     def xdc_times_focus(self, Th, times, delays):
-
         times_mat = self._numpy_to_mat(times, orient='col')
         delays_mat = self._numpy_to_mat(delays, orient='row')
-
         self._mateng.xdc_times_focus(Th, times_mat, delays_mat, nargout=0)
 
     def xdc_triangles(self, data, center, focus):
-
         data_mat = self._numpy_to_mat(data, orient='row')
         center_mat = self._numpy_to_mat(center, orient='row')
         focus_mat = self._numpy_to_mat(focus, orient='row')
-
-        self._mateng.xdc_triangles(data_mat, center_mat, focus_mat, nargout=0)
+        return self._mateng.xdc_triangles(data_mat,
+                                          center_mat,
+                                          focus_mat,
+                                          nargout=1)
 
     # ELE FUNCTIONS #
 
@@ -418,21 +392,18 @@ class PyField(object):
 
         element_no_mat = self._numpy_to_mat(element_no, orient='col')
         apo_mat = self._numpy_to_mat(apo, orient='row')
-
         self._mateng.ele_apodization(Th, element_no_mat, apo_mat, nargout=0)
 
     def ele_delay(self, Th, element_no, delays):
 
         element_no_mat = self._numpy_to_mat(element_no, orient='col')
         delays_mat = self._numpy_to_mat(delays, orient='row')
-
         self._mateng.ele_delay(Th, element_no_mat, delays_mat, nargout=0)
 
     def ele_waveform(self, Th, element_no, samples):
 
         element_no_mat = self._numpy_to_mat(element_no, orient='col')
         samples_mat = self._numpy_to_mat(samples, orient='row')
-
         self._mateng.ele_waveform(Th, element_no_mat, samples_mat, nargout=0)
 
 

@@ -12,7 +12,6 @@ from setuptools.extension import Extension
 import numpy as np
 import os
 
-
 setup(
     name='pyfield',
     version='0.1',
@@ -20,17 +19,5 @@ setup(
     package_data={
         'pyfield.core': ['*.m', '*.mat', '*.pdf', '*.mexw64', '*.mexa64']
     },
-    entry_points={
-      'console_scripts': [
-          'pyfield = pyfield.cli:main'
-      ]
-    },
-    install_requires=[
-        'numpy',
-        'scipy',
-        'sympy',
-        'attrs',
-        'tqdm',
-        'namedlist'
-    ]
-)
+    #   entry_points={'console_scripts': ['pyfield = pyfield.cli:main']},
+    install_requires=['numpy', 'scipy', 'pytest'])
