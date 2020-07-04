@@ -4,11 +4,39 @@ import numpy as np
 import scipy as sp
 import scipy.signal
 from matplotlib import pyplot as plt
-from util import distance
+from pyfield.util import distance
 from operator import itemgetter
 
+# def bsc_to_fir(freqs, bsc, c, rho, area, ns, fs, deriv=False, ntap=100):
+#     '''
+#     '''
+#     assert len(freqs) == len(bsc)
 
-def bsc_to_fir(freqs, bsc, c, rho, area, ns, fs, deriv=True, ntap=100):
+#     # check first frequency bin is zero
+#     if not np.isclose(freqs[0], 0):
+#         freqs = np.insert(freqs, 0, 0)
+#         bsc = np.insert(bsc, 0, 0)
+
+#     # check last frequency bin is nyquist
+#     if not np.isclose(freqs[-1], fs / 2):
+#         freqs = np.append(freqs, fs / 2)
+#         bsc = np.append(bsc, 0)
+
+#     freq_resp = 2 * np.pi / (rho * c * area * np.sqrt(ns)) * np.sqrt(
+#         np.abs(bsc))
+#     imp_resp = sp.signal.firwin2(ntap,
+#                                  freqs,
+#                                  freq_resp,
+#                                  fs=fs,
+#                                  antisymmetric=False,
+#                                  window='hamming')
+
+#     if deriv:
+#         return np.gradient(imp_resp, 1 / fs)
+#     return imp_resp
+
+
+def bsc_to_fir(freqs, bsc, area, ns, fs, ntap=100):
     '''
     '''
     assert len(freqs) == len(bsc)
@@ -23,18 +51,15 @@ def bsc_to_fir(freqs, bsc, c, rho, area, ns, fs, deriv=True, ntap=100):
         freqs = np.append(freqs, fs / 2)
         bsc = np.append(bsc, 0)
 
-    freq_resp = 2 * np.pi / (rho * c * area * np.sqrt(ns)) * np.sqrt(
-        np.abs(bsc))
-    imp_resp = sp.signal.firwin2(ntap,
-                                 freqs,
-                                 freq_resp,
-                                 nyq=(fs / 2),
-                                 antisymmetric=False,
-                                 window='hamming')
+    gains = 2 * np.pi / (area * np.sqrt(ns)) * np.sqrt(np.abs(bsc))
+    fir = sp.signal.firwin2(ntap,
+                            freqs,
+                            gains,
+                            fs=fs,
+                            antisymmetric=False,
+                            window='hamming')
 
-    if deriv:
-        return np.gradient(imp_resp, 1 / fs)
-    return imp_resp
+    return fir
 
 
 # def xdc_get_area(file_path):
@@ -376,15 +401,39 @@ def bsc_human_blood():
     return np.array(freqs), np.array(bsc)
 
 
-def bsc_canine_heart():
+def bsc_human_blood_powerfit(freqs=None):
+    '''
+    '''
+    if freqs is None:
+        freqs = np.arange(0, 20e6 + 0.5e6, 1e6)
+
+    a = 9.521356320585827e-29
+    b = 3.724925809643933
+
+    return freqs, a * (freqs**b)
+
+
+def bsc_canine_myocardium():
     '''
     Backscattering coefficient spectrum in units of 1/(Sr*m) of canine myocardium.
     Source: O'Donnel et. al. ...
     '''
-    freqs = [0., 2e6, 3e6, 4e6, 5e6, 6e6, 7e7, 8e6, 9e6, 10e6]
+    freqs = [0., 2e6, 3e6, 4e6, 5e6, 6e6, 7e6, 8e6, 9e6, 10e6]
     bsc = [0., 2.4e-2, 1e-1, 3e-1, 5.4e-1, 9e-1, 1.4, 2.0, 3.0, 4.0]
 
     return np.array(freqs), np.array(bsc)
+
+
+def bsc_canine_myocardium_powerfit(freqs=None):
+    '''
+    '''
+    if freqs is None:
+        freqs = np.arange(0, 20e6 + 0.5e6, 1e6)
+
+    a = 5.572634270689345e-22
+    b = 3.126758654375955
+
+    return freqs, a * (freqs**b)
 
 
 def cardiac_penetration_phantom(dim=(0.01, 0.01, 0.1),
@@ -427,43 +476,26 @@ def cardiac_penetration_phantom(dim=(0.01, 0.01, 0.1),
                 if k == 0:
                     att = None
                     scat = None
+                    material = 'none'
                 else:
-                    att = myo_att if k % 2 == 0 else blood_att
+                    if k % 2 == 0:
+                        att = myo_att
+                        material = 'myocardium'
+                    else:
+                        att = blood_att
+                        material = 'blood'
 
-                    nscat = round(ns * dim_x * dim_y * dim_z)
+                    nscat = int(round(ns * dim_x * dim_y * dim_z))
                     scat = np.c_[sp.rand(nscat) * dim_x,
                                  sp.rand(nscat) * dim_y,
                                  sp.rand(nscat) * dim_z] - np.array(
                                      [dim_x, dim_y, dim_z]) / 2 + center
 
-                phantom[(i, j, k)] = dict(att=att,
+                phantom[(i, j, k)] = dict(material=material,
+                                          att=att,
                                           scat=scat,
                                           center=center,
                                           bbox=bbox)
-
-    # # set attenuation properties of each layer
-    # atts = {}
-    # atts[(0, 0, 0)] = 0.0
-    # atts[(0, 0, 1)] = blood_att
-    # for i in range(2, len(planes_z) - 1):
-    #     if i % 2 == 0:
-    #         atts[(0, 0, i)] = myo_att
-    #     else:
-    #         atts[(0, 0, i)] = blood_att
-
-    # # construct phantom scatterers
-    # layers = []
-    # layers.append(None)  # layer 0 is an empty buffer layer
-
-    # for zid in range(1, len(zs) - 1):
-    #     length_z = zs[zid + 1] - zs[zid]
-    #     box_center = np.array([0., 0., length_z / 2 + zs[zid]])
-    #     nscat = round(ns * length_x * length_y * length_z)
-    #     layers.append(np.c_[sp.rand(nscat) * length_x,
-    #                         sp.rand(nscat) * length_y,
-    #                         sp.rand(nscat) * length_z] -
-    #                   np.array([length_x, length_y, length_z]) / 2 +
-    #                   box_center)
 
     return phantom
 

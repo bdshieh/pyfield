@@ -145,7 +145,7 @@ def qfirwin(x,
     return fx
 
 
-def qfft(s, nfft=None, fs=1, dr=100, fig=None, **kwargs):
+def qfft(s, nfft=None, fs=1):
     '''
     Quick FFT plot. Returns frequency bins and FFT in dB.
     '''
@@ -164,12 +164,36 @@ def qfft(s, nfft=None, fs=1, dr=100, fig=None, **kwargs):
     ft = sp.fftpack.fft(s, axis=1)
     freqs = sp.fftpack.fftfreq(nfft, 1 / fs)
 
-    ftdb = 20 * np.log10(np.abs(ft) / (np.max(np.abs(ft), axis=1)[..., None]))
-    ftdb[ftdb < -dr] = -dr
-
     cutoff = (nfft + 1) // 2
 
-    return freqs[:cutoff], ftdb[:, :cutoff]
+    return freqs[:cutoff], ft[:, :cutoff].squeeze()
+
+
+# def qfft(s, nfft=None, fs=1, dr=100, fig=None, **kwargs):
+#     '''
+#     Quick FFT plot. Returns frequency bins and FFT in dB.
+#     '''
+#     s = np.atleast_2d(s)
+
+#     nsig, nsample = s.shape
+
+#     if nfft is None:
+#         nfft = nsample
+
+#     if nfft > nsample:
+#         s = np.pad(s, ((0, 0), (0, nfft - nsample)), mode='constant')
+#     elif nfft < nsample:
+#         s = s[:, :nfft]
+
+#     ft = sp.fftpack.fft(s, axis=1)
+#     freqs = sp.fftpack.fftfreq(nfft, 1 / fs)
+
+#     ftdb = 20 * np.log10(np.abs(ft) / (np.max(np.abs(ft), axis=1)[..., None]))
+#     ftdb[ftdb < -dr] = -dr
+
+#     cutoff = (nfft + 1) // 2
+
+#     return freqs[:cutoff], ftdb[:, :cutoff]
 
 
 def concatenate_with_padding(rf_data, t0s, fs, axis=-1):
