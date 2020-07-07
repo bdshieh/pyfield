@@ -261,7 +261,6 @@ def sum_with_padding(rfdata, t0s=None, fs=1, axis=-1):
         return rfdata[0], t0s[0]
 
     nsig = len(rfdata)
-    # rfdata = np.atleast_2d(*rfdata)
     shape = rfdata[0].shape
     ndim = len(shape)
 
@@ -270,9 +269,11 @@ def sum_with_padding(rfdata, t0s=None, fs=1, axis=-1):
     mint0 = min(t0s)
 
     frontpads = [int(np.ceil((t - mint0) * fs)) for t in t0s]
-    maxlen = max([fpad + shape[axis] for fpad, rf in zip(frontpads, rfdata)])
+    maxlen = max(
+        [fpad + rf.shape[axis] for fpad, rf in zip(frontpads, rfdata)])
     backpads = [
-        maxlen - (fpad + shape[axis]) for fpad, rf in zip(frontpads, rfdata)
+        maxlen - (fpad + rf.shape[axis])
+        for fpad, rf in zip(frontpads, rfdata)
     ]
 
     newshape = list(shape)
