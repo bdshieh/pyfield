@@ -95,15 +95,28 @@ def distance(*args):
     return cdist(*np.atleast_2d(*args))
 
 
-def gausspulse(fc, fbw, fs):
+def gausspulse(fc, fbw, fs, sym=True):
+    '''[summary]
 
+    Args:
+        fc ([type]): [description]
+        fbw ([type]): [description]
+        fs ([type]): [description]
+        sym (bool, optional): [description]. Defaults to True.
+
+    Returns:
+        [type]: [description]
+    '''
     cutoff = scipy.signal.gausspulse('cutoff', fc=fc, bw=fbw, tpr=-100, bwr=-3)
     adj_cutoff = np.ceil(cutoff * fs) / fs
 
     t = np.arange(-adj_cutoff, adj_cutoff + 1 / fs, 1 / fs)
-    pulse, _ = sp.signal.gausspulse(t, fc=fc, bw=fbw, retquad=True, bwr=-3)
+    pulse, quad = sp.signal.gausspulse(t, fc=fc, bw=fbw, retquad=True, bwr=-3)
 
-    return pulse, t
+    if sym:
+        return pulse, t
+    else:
+        return quad, t
 
 
 def nextpow2(n):
@@ -169,6 +182,35 @@ def qfft(s, nfft=None, fs=1):
     return freqs[:cutoff], ft[:, :cutoff].squeeze()
 
 
+def set_axes_equal(ax):
+    '''Make axes of 3D plot have equal scale so that spheres appear as spheres,
+    cubes as cubes, etc..  This is one possible solution to Matplotlib's
+    ax.set_aspect('equal') and ax.axis('equal') not working for 3D.
+
+    Input
+      ax: a matplotlib axis, e.g., as output from plt.gca().
+    '''
+
+    x_limits = ax.get_xlim3d()
+    y_limits = ax.get_ylim3d()
+    z_limits = ax.get_zlim3d()
+
+    x_range = abs(x_limits[1] - x_limits[0])
+    x_middle = np.mean(x_limits)
+    y_range = abs(y_limits[1] - y_limits[0])
+    y_middle = np.mean(y_limits)
+    z_range = abs(z_limits[1] - z_limits[0])
+    z_middle = np.mean(z_limits)
+
+    # The plot bounding box is a sphere in the sense of the infinity
+    # norm, hence I call half the max range the plot radius.
+    plot_radius = 0.5 * max([x_range, y_range, z_range])
+
+    ax.set_xlim3d([x_middle - plot_radius, x_middle + plot_radius])
+    ax.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
+    ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
+
+
 # def qfft(s, nfft=None, fs=1, dr=100, fig=None, **kwargs):
 #     '''
 #     Quick FFT plot. Returns frequency bins and FFT in dB.
@@ -223,28 +265,75 @@ def concatenate_with_padding(rf_data, t0s, fs, axis=-1):
         return np.concatenate(new_data, axis=axis), mint0
 
 
-def sum_with_padding(rf_data, t0s, fs):
+def sum_with_padding(rfdata, t0s=None, fs=1, axis=-1):
+    '''[summary]
 
-    if len(rf_data) <= 1:
-        return np.atleast_2d(rf_data[0]), t0s[0]
+    Args:
+        rfdata ([type]): [description]
+        t0s ([type], optional): [description]. Defaults to None.
+        fs (int, optional): [description]. Defaults to 1.
 
-    rf_data = np.atleast_2d(*rf_data)
+    Returns:
+        [type]: [description]
+    '''
+    if len(rfdata) == 1:
+        return rfdata[0], t0s[0]
 
+    nsig = len(rfdata)
+    # rfdata = np.atleast_2d(*rfdata)
+    shape = rfdata[0].shape
+    ndim = len(shape)
+
+    if t0s is None:
+        t0s = [0] * nsig
     mint0 = min(t0s)
+
     frontpads = [int(np.ceil((t - mint0) * fs)) for t in t0s]
-    maxlen = max([fpad + rf.shape[1] for fpad, rf in zip(frontpads, rf_data)])
+    maxlen = max([fpad + shape[axis] for fpad, rf in zip(frontpads, rfdata)])
     backpads = [
-        maxlen - (fpad + rf.shape[1]) for fpad, rf in zip(frontpads, rf_data)
+        maxlen - (fpad + shape[axis]) for fpad, rf in zip(frontpads, rfdata)
     ]
 
-    new_data = []
+    # new_data = []
+    # sumrf = np.zeros(maxlen)
+    newshape = list(shape)
+    newshape[axis] = maxlen
+    sumrf = np.zeros(newshape)
 
-    for rf, fpad, bpad in zip(rf_data, frontpads, backpads):
+    for rf, fpad, bpad in zip(rfdata, frontpads, backpads):
+        padwidth = [
+            (0, 0),
+        ] * ndim
+        padwidth[axis] = (fpad, bpad)
+        sumrf += np.pad(rf, padwidth, mode='constant')
+        # new_data.append(new_rf)
 
-        new_rf = np.pad(rf, ((0, 0), (fpad, bpad)), mode='constant')
-        new_data.append(new_rf)
+    # return np.sum(new_data, axis=0).squeeze(), mint0
+    return sumrf, mint0
 
-    return np.sum(new_data, axis=0), mint0
+
+# def sum_with_padding(rf_data, t0s, fs):
+
+#     if len(rf_data) <= 1:
+#         return np.atleast_2d(rf_data[0]), t0s[0]
+
+#     rf_data = np.atleast_2d(*rf_data)
+
+#     mint0 = min(t0s)
+#     frontpads = [int(np.ceil((t - mint0) * fs)) for t in t0s]
+#     maxlen = max([fpad + rf.shape[1] for fpad, rf in zip(frontpads, rf_data)])
+#     backpads = [
+#         maxlen - (fpad + rf.shape[1]) for fpad, rf in zip(frontpads, rf_data)
+#     ]
+
+#     new_data = []
+
+#     for rf, fpad, bpad in zip(rf_data, frontpads, backpads):
+
+#         new_rf = np.pad(rf, ((0, 0), (fpad, bpad)), mode='constant')
+#         new_data.append(new_rf)
+
+#     return np.sum(new_data, axis=0), mint0
 
 
 def memoize(func):

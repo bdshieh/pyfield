@@ -4,41 +4,40 @@ import numpy as np
 import scipy as sp
 import scipy.signal
 from matplotlib import pyplot as plt
-from pyfield.util import distance
+from mpl_toolkits.mplot3d import Axes3D
 from operator import itemgetter
 
-# def bsc_to_fir(freqs, bsc, c, rho, area, ns, fs, deriv=False, ntap=100):
-#     '''
-#     '''
-#     assert len(freqs) == len(bsc)
-
-#     # check first frequency bin is zero
-#     if not np.isclose(freqs[0], 0):
-#         freqs = np.insert(freqs, 0, 0)
-#         bsc = np.insert(bsc, 0, 0)
-
-#     # check last frequency bin is nyquist
-#     if not np.isclose(freqs[-1], fs / 2):
-#         freqs = np.append(freqs, fs / 2)
-#         bsc = np.append(bsc, 0)
-
-#     freq_resp = 2 * np.pi / (rho * c * area * np.sqrt(ns)) * np.sqrt(
-#         np.abs(bsc))
-#     imp_resp = sp.signal.firwin2(ntap,
-#                                  freqs,
-#                                  freq_resp,
-#                                  fs=fs,
-#                                  antisymmetric=False,
-#                                  window='hamming')
-
-#     if deriv:
-#         return np.gradient(imp_resp, 1 / fs)
-#     return imp_resp
+from pyfield import util
 
 
-def bsc_to_fir(freqs, bsc, area, ns, fs, ntap=100):
+def bsc_to_fir(freqs, bsc, area, ns, fs, ntap=100, window='hamming'):
     '''
+    FIR filter design based on a desired backscattering coefficient spectrum.
+
+    Parameters
+    ----------
+    freqs : array_like, 1-D
+        The frequency sampling points in Hz.
+    bsc : array_like, 1-D
+        The backscattering coefficient at the frequency
+        sampling points.
+    area : float
+        The surface area of the receive aperture in m^2.
+    ns : float
+        The scatterer density in number of scatterers per m^3.
+    fs : float
+        The sampling frequency in Hz.
+    ntap : int, optional
+        The number of taps in the FIR filter. Defaults to 100.
+    window : str, optional
+        The window function used in the filter design. Defaults to 'hamming'.
+
+    Returns
+    -------
+    taps: ndarray
+        The taps of the FIR filter.
     '''
+    freqs, bsc = np.atleast_1d(freqs, bsc)
     assert len(freqs) == len(bsc)
 
     # check first frequency bin is zero
@@ -57,37 +56,69 @@ def bsc_to_fir(freqs, bsc, area, ns, fs, ntap=100):
                             gains,
                             fs=fs,
                             antisymmetric=False,
-                            window='hamming')
+                            window=window)
 
     return fir
 
+    # def xdc_get_area(file_path):
+    #     '''
+    #     '''
+    #     with np.load(file_path) as varz:
+    #         info = varz['info']
+    #         widths = info[2, :]
+    #         heights = info[3, :]
 
-# def xdc_get_area(file_path):
-#     '''
-#     '''
-#     with np.load(file_path) as varz:
-#         info = varz['info']
-#         widths = info[2, :]
-#         heights = info[3, :]
+    #     area = np.sum(widths * heights)
 
-#     area = np.sum(widths * heights)
-
-#     return area
+    #     return area
 
 
-def calc_path_att(r0, r1, xs, ys, zs, att, info=False):
+def calc_path_att(r0, r1, phantom, info=False):
     '''
+    One-way attenuation along a given path in a simulated phantom.
+
+    Parameters
+    ----------
+    r0 : array_like, 1-D
+        The (x, y, z) coordinates of the start point.
+    r1 : array_like, 1-D
+        The (x, y, z) coordinates of the end point.
+    phantom : dict
+        A nested dict containing the geometry and material information of the
+        phantom.
+    info : bool, optional
+        If True, also returns path-related meta information. Default is False
+
+    Returns
+    -------
+    att_total : float
+        The total attenuation. Always returned.
+    points : ndarray, 2-D
+        (x, y, z) coordinates of segment points along the path.
+        Only returned if `info` is True.
+    midpoints : ndarray, 2-D
+        (x, y, z) coordinates of segment mid-points. 
+        Only returned if `info` is True.
+    path_lengths : ndarray
+        Lengths of each segment. Only returned if `info` is True.
+    att_coeffs : ndarray
+        Attenuation coefficient of each segment. 
+        Only returned if `info` is True.
     '''
+    r0, r1 = np.atleast_1d(r0, r1)
     eps = np.finfo(np.float64).eps
     Dx, Dy, Dz = (r1 - r0).astype(np.float64)
     x0, y0, z0 = r0.astype(np.float64)
     x1, y1, z1 = r1.astype(np.float64)
 
-    xflag, yflag, zflag = False, False, False
+    xflag = abs(Dx) < eps
+    yflag = abs(Dy) < eps
+    zflag = abs(Dz) < eps
 
-    if abs(Dx) < eps: xflag = True
-    if abs(Dy) < eps: yflag = True
-    if abs(Dz) < eps: zflag = True
+    px = phantom['planes_x']
+    py = phantom['planes_y']
+    pz = phantom['planes_z']
+    px, py, pz = np.atleast_1d(px, py, pz)
 
     if xflag and yflag:  # line parallel to z-axis
 
@@ -103,9 +134,11 @@ def calc_path_att(r0, r1, xs, ys, zs, att, info=False):
         zmin = min(z0, z1)
         zmax = max(z0, z1)
 
-        for z in zs:
-            if z < zmin: continue
-            if z > zmax: continue
+        for z in pz:
+            if z < zmin:
+                continue
+            if z > zmax:
+                continue
             points.append(fz(z))
 
         points = list(set(points))
@@ -125,9 +158,11 @@ def calc_path_att(r0, r1, xs, ys, zs, att, info=False):
         xmin = min(x0, x1)
         xmax = max(x0, x1)
 
-        for x in xs:
-            if x < xmin: continue
-            if x > xmax: continue
+        for x in px:
+            if x < xmin:
+                continue
+            if x > xmax:
+                continue
             points.append(fx(x))
 
         points = list(set(points))
@@ -147,9 +182,11 @@ def calc_path_att(r0, r1, xs, ys, zs, att, info=False):
         ymin = min(y0, y1)
         ymax = max(y0, y1)
 
-        for y in ys:
-            if y < ymin: continue
-            if y > ymax: continue
+        for y in py:
+            if y < ymin:
+                continue
+            if y > ymax:
+                continue
             points.append(fy(y))
 
         points = list(set(points))
@@ -177,14 +214,18 @@ def calc_path_att(r0, r1, xs, ys, zs, att, info=False):
         ymax = max(y0, y1)
         zmax = max(z0, z1)
 
-        for y in ys:
-            if y < ymin: continue
-            if y > ymax: continue
+        for y in py:
+            if y < ymin:
+                continue
+            if y > ymax:
+                continue
             points.append(fy(y))
 
-        for z in zs:
-            if z < zmin: continue
-            if z > zmax: continue
+        for z in pz:
+            if z < zmin:
+                continue
+            if z > zmax:
+                continue
             points.append(fz(z))
 
         points = list(set(points))
@@ -212,14 +253,18 @@ def calc_path_att(r0, r1, xs, ys, zs, att, info=False):
         xmax = max(x0, x1)
         zmax = max(z0, z1)
 
-        for x in xs:
-            if x < xmin: continue
-            if x > xmax: continue
+        for x in px:
+            if x < xmin:
+                continue
+            if x > xmax:
+                continue
             points.append(fx(x))
 
-        for z in zs:
-            if z < zmin: continue
-            if z > zmax: continue
+        for z in pz:
+            if z < zmin:
+                continue
+            if z > zmax:
+                continue
             points.append(fz(z))
 
         points = list(set(points))
@@ -247,14 +292,18 @@ def calc_path_att(r0, r1, xs, ys, zs, att, info=False):
         xmax = max(x0, x1)
         ymax = max(y0, y1)
 
-        for x in xs:
-            if x < xmin: continue
-            if x > xmax: continue
+        for x in px:
+            if x < xmin:
+                continue
+            if x > xmax:
+                continue
             points.append(fx(x))
 
-        for y in ys:
-            if y < ymin: continue
-            if y > ymax: continue
+        for y in py:
+            if y < ymin:
+                continue
+            if y > ymax:
+                continue
             points.append(fy(y))
 
         points = list(set(points))
@@ -291,19 +340,25 @@ def calc_path_att(r0, r1, xs, ys, zs, att, info=False):
         ymax = max(y0, y1)
         zmax = max(z0, z1)
 
-        for x in xs:
-            if x < xmin: continue
-            if x > xmax: continue
+        for x in px:
+            if x < xmin:
+                continue
+            if x > xmax:
+                continue
             points.append(fx(x))
 
-        for y in ys:
-            if y < ymin: continue
-            if y > ymax: continue
+        for y in py:
+            if y < ymin:
+                continue
+            if y > ymax:
+                continue
             points.append(fy(y))
 
-        for z in zs:
-            if z < zmin: continue
-            if z > zmax: continue
+        for z in pz:
+            if z < zmin:
+                continue
+            if z > zmax:
+                continue
             points.append(fz(z))
 
         points = list(set(points))
@@ -311,25 +366,25 @@ def calc_path_att(r0, r1, xs, ys, zs, att, info=False):
         points = np.array(points)
 
     midpoints = (points[0:-1, :] + points[1:, :]) / 2.
-
-    #box_ids = []
     path_lengths = np.zeros(midpoints.shape[0])
     att_coeffs = np.zeros(midpoints.shape[0])
 
     for idx, mp in enumerate(midpoints):
         x, y, z = mp
-        path_lengths[idx] = (float(distance(points[idx, :],
-                                            points[idx + 1, :])))
+        path_lengths[idx] = (float(
+            util.distance(points[idx, :], points[idx + 1, :])))
 
-        xarg = np.where((x - xs) >= 0.0)[0][-1]
-        if xarg > (xs.size - 2): xarg = xs.size - 2
-        yarg = np.where((y - ys) >= 0.0)[0][-1]
-        if yarg > (ys.size - 2): yarg = ys.size - 2
-        zarg = np.where((z - zs) >= 0.0)[0][-1]
-        if zarg > (zs.size - 2): zarg = zs.size - 2
+        xarg = np.where((x - px) >= 0.0)[0][-1]
+        if xarg > (px.size - 2):
+            xarg = px.size - 2
+        yarg = np.where((y - py) >= 0.0)[0][-1]
+        if yarg > (py.size - 2):
+            yarg = py.size - 2
+        zarg = np.where((z - pz) >= 0.0)[0][-1]
+        if zarg > (pz.size - 2):
+            zarg = pz.size - 2
 
-        #box_ids.append((xarg, yarg, zarg))
-        att_coeffs[idx] = att[(xarg, yarg, zarg)]
+        att_coeffs[idx] = phantom[(xarg, yarg, zarg)]['att']
 
     att_total = np.product(np.exp(-att_coeffs * path_lengths))
 
@@ -339,61 +394,132 @@ def calc_path_att(r0, r1, xs, ys, zs, att, info=False):
         return att_total
 
 
-def draw_path_att(r0, r1, xs, ys, zs, att):
+def draw_phantom(phantom, colormap=None, ax=None, **kwargs):
     '''
+    [summary]
+
+    Parameters
+    ----------
+    phantom : [type]
+        [description]
+    colormap : [type], optional
+        [description], by default None
+    ax : [type], optional
+        [description], by default None
+
+    Returns
+    -------
+    [type]
+        [description]
     '''
-    info = calc_path_att(r0, r1, xs, ys, zs, att, info=True)
+    if ax is None:
+        makefig = True
+        fig = plt.figure(figsize=(8, 8))
+        ax = fig.add_subplot(111, projection='3d')
+        # ax.set_axes_off()
+    else:
+        makefig = False
 
-    points = info[1]
-    midpoints = info[2]
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+    px = phantom['planes_x']
+    py = phantom['planes_y']
+    pz = phantom['planes_z']
 
     # draw grid/boxes
-    x, y, z = np.meshgrid(xs, ys, zs)
-    lw = 1
-    ls = ':'
-    for i in range(x.shape[0]):
-        ax.plot_wireframe(x[i, :, :],
-                          y[i, :, :],
-                          z[i, :, :],
-                          linestyles=ls,
-                          linewidths=lw)
-    for i in range(y.shape[1]):
-        ax.plot_wireframe(x[:, i, :],
-                          y[:, i, :],
-                          z[:, i, :],
-                          linestyles=ls,
-                          linewidths=lw)
-    for i in range(z.shape[2]):
-        ax.plot_wireframe(x[:, :, i],
-                          y[:, :, i],
-                          z[:, :, i],
-                          linestyles=ls,
-                          linewidths=lw)
+    x, y, z = np.meshgrid(px, py, pz)
+    filled = np.ones((len(px) - 1, len(py) - 1, len(pz) - 1))
 
-    # plot intersection points
-    ax.plot(points[:, 0], points[:, 1], points[:, 2], 'ro')
+    colors = np.empty_like(filled, dtype='object')
+    if colormap is None:
+        colors[:] = '#ffffff00'
+    else:
+        for i in range(colors.shape[0]):
+            for j in range(colors.shape[1]):
+                for k in range(colors.shape[2]):
+                    key = phantom[i, j, k]['material']
+                    colors[i, j, k] = colormap[key]
+
+    ax.voxels(x, y, z, filled, facecolors=colors, edgecolors='gray', **kwargs)
+
+    if makefig:
+        util.set_axes_equal(ax)
+        return fig, ax
+
+
+def draw_path_att(r0, r1, phantom, ax=None, **kwargs):
+    '''
+    [summary]
+
+    Parameters
+    ----------
+    r0 : [type]
+        [description]
+    r1 : [type]
+        [description]
+    phantom : [type]
+        [description]
+    ax : [type], optional
+        [description], by default None
+
+    Returns
+    -------
+    [type]
+        [description]
+    '''
+    info = calc_path_att(r0, r1, phantom, info=True)
+    points = info[1]
+    # midpoints = info[2]
+
+    px = phantom['planes_x']
+    py = phantom['planes_y']
+    pz = phantom['planes_z']
+
+    if ax is None:
+        makefig = True
+        fig = plt.figure(figsize=(8, 8))
+        ax = fig.add_subplot(111, projection='3d')
+    else:
+        makefig = False
+
+    # draw grid/boxes
+    x, y, z = np.meshgrid(px, py, pz)
+
+    # plot path
+    ax.plot([r0[0], r1[0]], [r0[1], r1[1]], [r0[2], r1[2]], 'b-', label='Path')
 
     # plot start and end points
-    #ax.scatter(*r0, marker='x')
-    #ax.scatter(*r1, marker='x')
+    ax.plot([r0[0], r1[0]], [r0[1], r1[1]], [r0[2], r1[2]],
+            'b.',
+            label='Start/End points')
 
-    ax.plot([r0[0], r1[0]], [r0[1], r1[1]], [r0[2], r1[2]], 'g-')
+    # plot intersection points
+    if points.shape[0] > 2:
+        ax.plot(points[1:-1, 0],
+                points[1:-1, 1],
+                points[1:-1, 2],
+                'rx',
+                label='Intersection points')
 
-    ax.set_aspect('equal')
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    ax.set_zlabel('z')
+    if makefig:
+        util.set_axes_equal(ax)
+        return fig, ax
 
-    fig.show()
+
+'''Backscattering coefficient spectrum in units of 1/(Sr*m) of human blood at 8% hematocrit.
+Source: K. K. Shung et. al. 
+
+Returns:
+    [type]: [description]
+'''
 
 
 def bsc_human_blood():
     '''
-    Backscattering coefficient spectrum in units of 1/(Sr*m) of human blood at 8% hematocrit.
-    Source: K. K. Shung et. al. ...
+    [summary]
+
+    Returns
+    -------
+    [type]
+        [description]
     '''
     freqs = [0., 5e6, 7e6, 8.5e6, 10e6, 15e6]
     bsc = [0., 0.001, 0.003004, 0.005464, 0.008702, 0.06394]
@@ -401,22 +527,29 @@ def bsc_human_blood():
     return np.array(freqs), np.array(bsc)
 
 
-def bsc_human_blood_powerfit(freqs=None):
-    '''
-    '''
+def bsc_human_blood_powerfit(freqs=None, append=None):
+
     if freqs is None:
         freqs = np.arange(0, 20e6 + 0.5e6, 1e6)
 
     a = 9.521356320585827e-29
     b = 3.724925809643933
+    bsc = a * (freqs**b)
 
-    return freqs, a * (freqs**b)
+    if append is not None:
+        freqs = np.append(freqs, append[0])
+        bsc = np.append(bsc, append[1])
+
+    return freqs, bsc
 
 
 def bsc_canine_myocardium():
     '''
     Backscattering coefficient spectrum in units of 1/(Sr*m) of canine myocardium.
-    Source: O'Donnel et. al. ...
+    Source: O'Donnel et. al.
+
+    Returns:
+        [type]: [description]
     '''
     freqs = [0., 2e6, 3e6, 4e6, 5e6, 6e6, 7e6, 8e6, 9e6, 10e6]
     bsc = [0., 2.4e-2, 1e-1, 3e-1, 5.4e-1, 9e-1, 1.4, 2.0, 3.0, 4.0]
@@ -424,16 +557,28 @@ def bsc_canine_myocardium():
     return np.array(freqs), np.array(bsc)
 
 
-def bsc_canine_myocardium_powerfit(freqs=None):
-    '''
+def bsc_canine_myocardium_powerfit(freqs=None, append=None):
+    '''[summary]
+
+    Args:
+        freqs ([type], optional): [description]. Defaults to None.
+        append ([type], optional): [description]. Defaults to None.
+
+    Returns:
+        [type]: [description]
     '''
     if freqs is None:
         freqs = np.arange(0, 20e6 + 0.5e6, 1e6)
 
     a = 5.572634270689345e-22
     b = 3.126758654375955
+    bsc = a * (freqs**b)
 
-    return freqs, a * (freqs**b)
+    if append is not None:
+        freqs = np.append(freqs, append[0])
+        bsc = np.append(bsc, append[1])
+
+    return freqs, bsc
 
 
 def cardiac_penetration_phantom(dim=(0.01, 0.01, 0.1),
@@ -443,6 +588,27 @@ def cardiac_penetration_phantom(dim=(0.01, 0.01, 0.1),
                                 myo_att=58.0,
                                 ns=5e6):
     '''
+    [summary]
+
+    Parameters
+    ----------
+    dim : tuple, optional
+        [description], by default (0.01, 0.01, 0.1)
+    zthick : [type], optional
+        [description], by default 2e-3
+    dz : float, optional
+        [description], by default 0.01
+    blood_att : float, optional
+        [description], by default 14.0
+    myo_att : float, optional
+        [description], by default 58.0
+    ns : [type], optional
+        [description], by default 5e6
+
+    Returns
+    -------
+    [type]
+        [description]
     '''
     # att_blood = 0.14 * 100  # 0.14 Np/cm which is about 1.25 dB/cm
     # att_heart = 0.58 * 100  # 0.58 Np/cm which is about 5 dB/cm
@@ -454,7 +620,7 @@ def cardiac_penetration_phantom(dim=(0.01, 0.01, 0.1),
     planes_x = [-length_x / 2, length_x / 2]
     planes_y = [-length_x / 2, length_x / 2]
     planes_z = [0.0, 0.001]
-    # add reflecting layer (heart tissue) every cm starting from 3 cm
+    # add reflecting layer (myocardium) every dz with thickness zthick
     for i in np.arange(dz, length_z + dz / 2, dz):
         planes_z.append(i)
         planes_z.append(i + zthick)
@@ -474,8 +640,8 @@ def cardiac_penetration_phantom(dim=(0.01, 0.01, 0.1),
                 bbox = ((xmin, xmax), (ymin, ymax), (zmin, zmax))
 
                 if k == 0:
-                    att = None
-                    scat = None
+                    att = 0
+                    scat = []
                     material = 'none'
                 else:
                     if k % 2 == 0:
@@ -497,82 +663,12 @@ def cardiac_penetration_phantom(dim=(0.01, 0.01, 0.1),
                                           center=center,
                                           bbox=bbox)
 
+    phantom['planes_x'] = planes_x
+    phantom['planes_y'] = planes_y
+    phantom['planes_z'] = planes_z
+
     return phantom
 
 
-# def heart_penetration_phantom(length_x=0.01, length_y=0.01, zmax=0.15, ns=5e6):
-#     '''
-#     '''
-#     att_blood = 0.14 * 100  # 0.14 Np/cm which is about 1.25 dB/cm
-#     att_heart = 0.58 * 100  # 0.58 Np/cm which is about 5 dB/cm
-#     layer_thickness = 0.002
-
-#     # define phantom geometry
-#     xs = np.array([-length_x / 2, length_x / 2])
-#     ys = np.array([-length_x / 2, length_x / 2])
-#     zs = np.array([0.0, 0.001, 0.03, 0.04])
-#     # add reflecting layer (heart tissue) every cm starting from 5 cm
-#     for i in np.arange(0.05, zmax + 0.01 / 2, 0.01):
-#         zs = zs.append([i, i + layer_thickness])
-
-#     # set attenuation properties of each layer
-#     atts = {}
-#     atts[(0, 0, 0)] = 0.0
-#     atts[(0, 0, 1)] = att_blood
-#     atts[(0, 0, 2)] = att_heart
-#     for i in range(3, len(zs) - 1):
-#         if i % 2 == 0:
-#             atts[(0, 0, i)] = att_heart
-#         else:
-#             atts[(0, 0, i)] = att_blood
-
-#     # construct phantom scatterers
-#     layers = []
-#     layers.append(None)  # layer 0 is an empty buffer layer
-
-#     for zid in range(1, len(zs) - 1):
-#         length_x = xs[1] - xs[0]
-#         length_y = ys[1] - ys[0]
-#         length_z = zs[zid + 1] - zs[zid]
-#         box_center = np.array([0., 0., length_z / 2 + zs[zid]])
-#         nscat = round(ns * length_x * length_y * length_z)
-#         layers.append(np.c_[sp.rand(nscat) * length_x,
-#                             sp.rand(nscat) * length_y,
-#                             sp.rand(nscat) * length_z] -
-#                       np.array([length_x, length_y, length_z]) / 2 +
-#                       box_center)
-
 if __name__ == '__main__':
-
     pass
-    #from itertools import product
-    #
-    #xs = np.arange(0, 5, dtype=np.float64)
-    #ys = np.arange(0, 5, dtype=np.float64)
-    #zs = np.arange(0, 5, dtype=np.float64)
-    #
-    #att = {}
-    #for id in product(xrange(5), xrange(5), xrange(5)):
-    #    att[id] = 2e-5
-    #
-    #r0 = np.array([0,0,0])
-    #rx = np.array([4,0,0])
-    #ry = np.array([0,4,0])
-    #rz = np.array([0,0,4])
-    #rxy = np.array([4,4,0])
-    #rxz = np.array([4,0,0])
-    #ryz = np.array([0,4,4])
-    #rdiag = np.array([4,4,4])
-    #rxyz = np.array([3.5,2.5,3.5])
-    #
-    ##att1 = calc_path_att(r0, rx, xs, ys, zs, att)
-    ##att2 = calc_path_att(r1, r0, xs, ys, zs, att)
-    #
-    #draw_path_att(r0, rx, xs, ys, zs, att)
-    #draw_path_att(r0, ry, xs, ys, zs, att)
-    #draw_path_att(r0, rz, xs, ys, zs, att)
-    #draw_path_att(r0, rxy, xs, ys, zs, att)
-    #draw_path_att(r0, rxz, xs, ys, zs, att)
-    #draw_path_att(r0, ryz, xs, ys, zs, att)
-    #draw_path_att(r0, rdiag, xs, ys, zs, att)
-    #draw_path_att(r0, rxyz, xs, ys, zs, att)
