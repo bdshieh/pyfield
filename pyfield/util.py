@@ -7,88 +7,81 @@ import scipy.signal
 import scipy.fftpack
 from scipy.spatial.distance import cdist
 
+# def meshview(v1, v2, v3, mode='cartesian', as_list=True):
 
-def meshview(v1, v2, v3, mode='cartesian', as_list=True):
+#     if mode.lower() in ('cart', 'cartesian'):
+#         x, y, z = np.meshgrid(v1, v2, v3, indexing='ij')
+#     elif mode.lower() in ('sph', 'spherical'):
+#         r, theta, phi = np.meshgrid(v1,
+#                                     np.deg2rad(v2),
+#                                     np.deg2rad(v3),
+#                                     indexing='ij')
+#         x, y, z = sph2cart(r, theta, phi)
+#     elif mode.lower() in ('sec', 'sector'):
+#         r, alpha, beta = np.meshgrid(v1,
+#                                      np.deg2rad(v2),
+#                                      np.deg2rad(v3),
+#                                      indexing='ij')
+#         x, y, z = sec2cart(r, alpha, beta)
+#     elif mode.lower() in ('dp', 'dpolar'):
+#         r, alpha, beta = np.meshgrid(v1,
+#                                      np.deg2rad(v2),
+#                                      np.deg2rad(v3),
+#                                      indexing='ij')
+#         x, y, z = dp2cart(r, alpha, beta)
 
-    if mode.lower() in ('cart', 'cartesian'):
-        x, y, z = np.meshgrid(v1, v2, v3, indexing='ij')
-    elif mode.lower() in ('sph', 'spherical'):
-        r, theta, phi = np.meshgrid(v1,
-                                    np.deg2rad(v2),
-                                    np.deg2rad(v3),
-                                    indexing='ij')
-        x, y, z = sph2cart(r, theta, phi)
-    elif mode.lower() in ('sec', 'sector'):
-        r, alpha, beta = np.meshgrid(v1,
-                                     np.deg2rad(v2),
-                                     np.deg2rad(v3),
-                                     indexing='ij')
-        x, y, z = sec2cart(r, alpha, beta)
-    elif mode.lower() in ('dp', 'dpolar'):
-        r, alpha, beta = np.meshgrid(v1,
-                                     np.deg2rad(v2),
-                                     np.deg2rad(v3),
-                                     indexing='ij')
-        x, y, z = dp2cart(r, alpha, beta)
+#     if as_list:
+#         return np.c_[x.ravel('F'), y.ravel('F'), z.ravel('F')]
+#     else:
+#         return x, y, z
 
-    if as_list:
-        return np.c_[x.ravel('F'), y.ravel('F'), z.ravel('F')]
-    else:
-        return x, y, z
+# def sec2cart(r, alpha, beta):
 
+#     z = r / np.sqrt(np.tan(alpha)**2 + np.tan(beta)**2 + 1)
+#     x = z * np.tan(alpha)
+#     y = z * np.tan(beta)
 
-def sec2cart(r, alpha, beta):
-    ''''''
-    z = r / np.sqrt(np.tan(alpha)**2 + np.tan(beta)**2 + 1)
-    x = z * np.tan(alpha)
-    y = z * np.tan(beta)
+#     return x, y, z
 
-    return x, y, z
+# def cart2sec(x, y, z):
 
+#     r = np.sqrt(x**2 + y**2 + z**2)
+#     alpha = np.arccos(z / (np.sqrt(x**2 + z**2))) * np.sign(x)
+#     beta = np.arccos(z / (np.sqrt(y**2 + z**2))) * np.sign(y)
 
-def cart2sec(x, y, z):
-    ''''''
-    r = np.sqrt(x**2 + y**2 + z**2)
-    alpha = np.arccos(z / (np.sqrt(x**2 + z**2))) * np.sign(x)
-    beta = np.arccos(z / (np.sqrt(y**2 + z**2))) * np.sign(y)
+#     return r, alpha, beta
 
-    return r, alpha, beta
+# def sph2cart(r, theta, phi):
 
+#     x = r * np.cos(theta) * np.sin(phi)
+#     y = r * np.sin(theta) * np.sin(phi)
+#     z = r * np.cos(phi)
 
-def sph2cart(r, theta, phi):
-    ''''''
-    x = r * np.cos(theta) * np.sin(phi)
-    y = r * np.sin(theta) * np.sin(phi)
-    z = r * np.cos(phi)
+#     return x, y, z
 
-    return x, y, z
+# def cart2sph(x, y, z):
 
+#     r = np.sqrt(x**2 + y**2 + z**2)
+#     theta = np.arctan(y / x)
+#     phi = np.arccos(z / r)
 
-def cart2sph(x, y, z):
-    ''''''
-    r = np.sqrt(x**2 + y**2 + z**2)
-    theta = np.arctan(y / x)
-    phi = np.arccos(z / r)
+#     return r, theta, phi
 
-    return r, theta, phi
+# def cart2dp(x, y, z):
 
+#     r = np.sqrt(x**2 + y**2 + z**2)
+#     alpha = np.arccos((np.sqrt(y**2 + z**2) / r))
+#     beta = np.arccos((np.sqrt(x**2 + z**2) / r))
 
-def cart2dp(x, y, z):
-    ''''''
-    r = np.sqrt(x**2 + y**2 + z**2)
-    alpha = np.arccos((np.sqrt(y**2 + z**2) / r))
-    beta = np.arccos((np.sqrt(x**2 + z**2) / r))
+#     return r, alpha, beta
 
-    return r, alpha, beta
+# def dp2cart(r, alpha, beta):
 
+#     z = r * (1 - np.sin(alpha)**2 - np.sin(beta)**2)
+#     x = r * np.sin(alpha)
+#     y = r * np.sin(beta)
 
-def dp2cart(r, alpha, beta):
-    ''''''
-    z = r * (1 - np.sin(alpha)**2 - np.sin(beta)**2)
-    x = r * np.sin(alpha)
-    y = r * np.sin(beta)
-
-    return x, y, z
+#     return x, y, z
 
 
 def distance(*args):
@@ -96,16 +89,24 @@ def distance(*args):
 
 
 def gausspulse(fc, fbw, fs, sym=True):
-    '''[summary]
+    '''
+    [summary]
 
-    Args:
-        fc ([type]): [description]
-        fbw ([type]): [description]
-        fs ([type]): [description]
-        sym (bool, optional): [description]. Defaults to True.
+    Parameters
+    ----------
+    fc : [type]
+        [description]
+    fbw : [type]
+        [description]
+    fs : [type]
+        [description]
+    sym : bool, optional
+        [description], by default True
 
-    Returns:
-        [type]: [description]
+    Returns
+    -------
+    [type]
+        [description]
     '''
     cutoff = scipy.signal.gausspulse('cutoff', fc=fc, bw=fbw, tpr=-100, bwr=-3)
     adj_cutoff = np.ceil(cutoff * fs) / fs
@@ -159,9 +160,7 @@ def qfirwin(x,
 
 
 def qfft(s, nfft=None, fs=1):
-    '''
-    Quick FFT plot. Returns frequency bins and FFT in dB.
-    '''
+
     s = np.atleast_2d(s)
 
     nsig, nsample = s.shape
@@ -183,14 +182,14 @@ def qfft(s, nfft=None, fs=1):
 
 
 def set_axes_equal(ax):
-    '''Make axes of 3D plot have equal scale so that spheres appear as spheres,
-    cubes as cubes, etc..  This is one possible solution to Matplotlib's
-    ax.set_aspect('equal') and ax.axis('equal') not working for 3D.
-
-    Input
-      ax: a matplotlib axis, e.g., as output from plt.gca().
     '''
+    Make axes of a 3-D plot have equal scale.
 
+    Parameters
+    ----------
+    ax : `matplotlib.axes.Axes`
+        The axes to set equal.
+    '''
     x_limits = ax.get_xlim3d()
     y_limits = ax.get_ylim3d()
     z_limits = ax.get_zlim3d()
@@ -237,44 +236,59 @@ def set_axes_equal(ax):
 
 #     return freqs[:cutoff], ftdb[:, :cutoff]
 
+# def concatenate_with_padding(rf_data, t0s, fs, axis=-1):
 
-def concatenate_with_padding(rf_data, t0s, fs, axis=-1):
+#     if len(rf_data) <= 1:
+#         return np.atleast_2d(rf_data), t0s[0]
 
-    if len(rf_data) <= 1:
-        return np.atleast_2d(rf_data), t0s[0]
+#     rf_data = np.atleast_2d(*rf_data)
 
-    rf_data = np.atleast_2d(*rf_data)
+#     mint0 = float(min(t0s))
+#     frontpads = [int(np.ceil((t - mint0) * fs)) for t in t0s]
+#     maxlen = max([fpad + rf.shape[1] for fpad, rf in zip(frontpads, rf_data)])
+#     backpads = [
+#         maxlen - (fpad + rf.shape[1]) for fpad, rf in zip(frontpads, rf_data)
+#     ]
 
-    mint0 = float(min(t0s))
-    frontpads = [int(np.ceil((t - mint0) * fs)) for t in t0s]
-    maxlen = max([fpad + rf.shape[1] for fpad, rf in zip(frontpads, rf_data)])
-    backpads = [
-        maxlen - (fpad + rf.shape[1]) for fpad, rf in zip(frontpads, rf_data)
-    ]
+#     new_data = []
 
-    new_data = []
+#     for rf, fpad, bpad in zip(rf_data, frontpads, backpads):
 
-    for rf, fpad, bpad in zip(rf_data, frontpads, backpads):
+#         new_rf = np.pad(rf, ((0, 0), (fpad, bpad)), mode='constant')
+#         new_data.append(new_rf)
 
-        new_rf = np.pad(rf, ((0, 0), (fpad, bpad)), mode='constant')
-        new_data.append(new_rf)
-
-    if axis == 2:
-        return np.stack(new_data, axis=axis), mint0
-    else:
-        return np.concatenate(new_data, axis=axis), mint0
+#     if axis == 2:
+#         return np.stack(new_data, axis=axis), mint0
+#     else:
+#         return np.concatenate(new_data, axis=axis), mint0
 
 
 def sum_with_padding(rfdata, t0s=None, fs=1, axis=-1):
-    '''[summary]
+    '''
+    Sum a sequence of arrays representing RF data together.
 
-    Args:
-        rfdata ([type]): [description]
-        t0s ([type], optional): [description]. Defaults to None.
-        fs (int, optional): [description]. Defaults to 1.
+    The arrays must have the same shape, except in the dimension corresponding
+    to `axis` which is assumed to represent time. The time axis is zero-padded
+    acoordingly to align the arrays.
 
-    Returns:
-        [type]: [description]
+    Parameters
+    ----------
+    rfdata : sequence of array_like
+        The sequence of RF arrays. 
+    t0s : sequence of float, optional
+        The time at which each array starts in seconds. If None, the start
+        time is assumed to be 0. Default is None.
+    fs : int, optional
+        The sampling frequency in Hz. Default is 1.
+    axis : int, optional
+        The axis to pad. Default is -1.
+
+    Returns
+    -------
+    rf : ndarray
+        The summed array.
+    t0 : float
+        The start time.
     '''
     if len(rfdata) == 1:
         return rfdata[0], t0s[0]
@@ -294,8 +308,6 @@ def sum_with_padding(rfdata, t0s=None, fs=1, axis=-1):
         maxlen - (fpad + shape[axis]) for fpad, rf in zip(frontpads, rfdata)
     ]
 
-    # new_data = []
-    # sumrf = np.zeros(maxlen)
     newshape = list(shape)
     newshape[axis] = maxlen
     sumrf = np.zeros(newshape)
@@ -306,9 +318,7 @@ def sum_with_padding(rfdata, t0s=None, fs=1, axis=-1):
         ] * ndim
         padwidth[axis] = (fpad, bpad)
         sumrf += np.pad(rf, padwidth, mode='constant')
-        # new_data.append(new_rf)
 
-    # return np.sum(new_data, axis=0).squeeze(), mint0
     return sumrf, mint0
 
 
@@ -361,3 +371,16 @@ def memoize(func):
         return memo[key]
 
     return decorator
+
+
+# def xdc_get_area(file_path):
+#     '''
+#     '''
+#     with np.load(file_path) as varz:
+#         info = varz['info']
+#         widths = info[2, :]
+#         heights = info[3, :]
+
+#     area = np.sum(widths * heights)
+
+#     return area

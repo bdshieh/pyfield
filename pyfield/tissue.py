@@ -19,8 +19,8 @@ def bsc_to_fir(freqs, bsc, area, ns, fs, ntap=100, window='hamming'):
     freqs : array_like, 1-D
         The frequency sampling points in Hz.
     bsc : array_like, 1-D
-        The backscattering coefficient at the frequency
-        sampling points.
+        The backscattering coefficient at the frequency sampling
+        points in 1 / (Sr * m).
     area : float
         The surface area of the receive aperture in m^2.
     ns : float
@@ -50,7 +50,11 @@ def bsc_to_fir(freqs, bsc, area, ns, fs, ntap=100, window='hamming'):
         freqs = np.append(freqs, fs / 2)
         bsc = np.append(bsc, 0)
 
+    # normalize gains so that the filter results in the mean pressure over the
+    # receive aperture
     gains = 2 * np.pi / (area * np.sqrt(ns)) * np.sqrt(np.abs(bsc))
+
+    # create the filter
     fir = sp.signal.firwin2(ntap,
                             freqs,
                             gains,
@@ -60,18 +64,6 @@ def bsc_to_fir(freqs, bsc, area, ns, fs, ntap=100, window='hamming'):
 
     return fir
 
-    # def xdc_get_area(file_path):
-    #     '''
-    #     '''
-    #     with np.load(file_path) as varz:
-    #         info = varz['info']
-    #         widths = info[2, :]
-    #         heights = info[3, :]
-
-    #     area = np.sum(widths * heights)
-
-    #     return area
-
 
 def calc_path_att(r0, r1, phantom, info=False):
     '''
@@ -80,11 +72,11 @@ def calc_path_att(r0, r1, phantom, info=False):
     Parameters
     ----------
     r0 : array_like, 1-D
-        The (x, y, z) coordinates of the start point.
+        The (x, y, z) coordinates of the path start point.
     r1 : array_like, 1-D
-        The (x, y, z) coordinates of the end point.
+        The (x, y, z) coordinates of the path end point.
     phantom : dict
-        A nested dict containing the geometry and material information of the
+        A nested `dict` containing the geometry and material information of the
         phantom.
     info : bool, optional
         If True, also returns path-related meta information. Default is False
@@ -396,21 +388,25 @@ def calc_path_att(r0, r1, phantom, info=False):
 
 def draw_phantom(phantom, colormap=None, ax=None, **kwargs):
     '''
-    [summary]
+    3-D plot of phantom geometry.
 
     Parameters
     ----------
-    phantom : [type]
-        [description]
-    colormap : [type], optional
-        [description], by default None
-    ax : [type], optional
-        [description], by default None
+    phantom : dict
+        A nested `dict` containing the geometry and material information of the
+        phantom.
+    colormap : dict, optional
+        A dict mapping material names (keys) to their display colors (values).
+        Default is None.
+    ax : `matplotlib.axes.Axes`, optional
+        The axes to plot to. Default is None.
 
     Returns
     -------
-    [type]
-        [description]
+    fig : `matplotlib.figure.Figure`
+        Only returned if `ax` is None.
+    ax : `matplotlib.axes.Axes`
+        Only returned if `ax` is None.
     '''
     if ax is None:
         makefig = True
@@ -451,19 +447,22 @@ def draw_path_att(r0, r1, phantom, ax=None, **kwargs):
 
     Parameters
     ----------
-    r0 : [type]
-        [description]
-    r1 : [type]
-        [description]
-    phantom : [type]
-        [description]
-    ax : [type], optional
-        [description], by default None
+    r0 : array_like, 1-D
+        (x, y, z) coordinates of the path start point.
+    r1 : array_like, 1-D
+        (x, y, z) coordinates of the path end point.
+    phantom : dict
+        A nested `dict` containing the geometry and material information of the
+        phantom.
+    ax : `matplotlib.axes.Axes`, optional
+        The axes to plot to. Default is None.
 
     Returns
     -------
-    [type]
-        [description]
+    fig : `matplotlib.figure.Figure`
+        Only returned if `ax` is None.
+    ax : `matplotlib.axes.Axes`
+        Only returned if `ax` is None.
     '''
     info = calc_path_att(r0, r1, phantom, info=True)
     points = info[1]
@@ -514,12 +513,21 @@ Returns:
 
 def bsc_human_blood():
     '''
-    [summary]
+    Backscattering coefficient spectrum of human blood.
+
+    Measured experimentally for blood with 8% hematocrit from 0 to 15 MHz [1].
 
     Returns
     -------
-    [type]
-        [description]
+    freqs : ndarray, 1-D
+        The frequency sample points in Hz.
+    bsc : ndarray, 1-D
+        The backscattering coefficient at the frequency sample
+        points in 1 / (Sr * m).
+    
+    References
+    -------
+    .. [1] K. K. Shung et. al...
     '''
     freqs = [0., 5e6, 7e6, 8.5e6, 10e6, 15e6]
     bsc = [0., 0.001, 0.003004, 0.005464, 0.008702, 0.06394]
@@ -528,7 +536,25 @@ def bsc_human_blood():
 
 
 def bsc_human_blood_powerfit(freqs=None, append=None):
+    '''
+    Power law fit of the human blood backscattering coefficient spectrum.
 
+    Parameters
+    ----------
+    freqs : array_like, 1-D, optional
+        The frequency sample points. If None, samples points will span
+        from 0 to 20 MHz in 1 MHz steps. Default is None.
+    append : sequence, optional
+        Data points to append in terms of [[freqs,], [bsc,]]. Default is None
+
+    Returns
+    -------
+    freqs : ndarray, 1-D
+        The frequency sample points in Hz.
+    bsc : ndarray, 1-D
+        The backscattering coefficient at the frequency sample
+        points in 1 / (Sr * m).
+    '''
     if freqs is None:
         freqs = np.arange(0, 20e6 + 0.5e6, 1e6)
 
@@ -545,11 +571,21 @@ def bsc_human_blood_powerfit(freqs=None, append=None):
 
 def bsc_canine_myocardium():
     '''
-    Backscattering coefficient spectrum in units of 1/(Sr*m) of canine myocardium.
-    Source: O'Donnel et. al.
+    Backscattering coefficient spectrum of canine myocardium.
 
-    Returns:
-        [type]: [description]
+    Measured experimentally from 0 to 10 MHz [1].
+
+    Returns
+    -------
+    freqs : ndarray, 1-D
+        The frequency sample points in Hz.
+    bsc : ndarray, 1-D
+        The backscattering coefficient at the frequency sample
+        points in 1 / (Sr * m).
+    
+    References
+    -------
+    .. [1] O'Donnell et. al...
     '''
     freqs = [0., 2e6, 3e6, 4e6, 5e6, 6e6, 7e6, 8e6, 9e6, 10e6]
     bsc = [0., 2.4e-2, 1e-1, 3e-1, 5.4e-1, 9e-1, 1.4, 2.0, 3.0, 4.0]
@@ -558,14 +594,24 @@ def bsc_canine_myocardium():
 
 
 def bsc_canine_myocardium_powerfit(freqs=None, append=None):
-    '''[summary]
+    '''
+    Power law fit of the canine myocardium backscattering coefficient spectrum.
 
-    Args:
-        freqs ([type], optional): [description]. Defaults to None.
-        append ([type], optional): [description]. Defaults to None.
+    Parameters
+    ----------
+    freqs : array_like, 1-D, optional
+        The frequency sample points. If None, samples points will span
+        from 0 to 20 MHz in 1 MHz steps. Default is None.
+    append : sequence, optional
+        Data points to append in terms of [[freqs,], [bsc,]]. Default is None
 
-    Returns:
-        [type]: [description]
+    Returns
+    -------
+    freqs : ndarray, 1-D
+        The frequency sample points in Hz.
+    bsc : ndarray, 1-D
+        The backscattering coefficient at the frequency sample
+        points in 1 / (Sr * m).
     '''
     if freqs is None:
         freqs = np.arange(0, 20e6 + 0.5e6, 1e6)
@@ -588,26 +634,29 @@ def cardiac_penetration_phantom(dim=(0.01, 0.01, 0.1),
                                 myo_att=58.0,
                                 ns=5e6):
     '''
-    [summary]
+    Simulated phantom for assessing penetration in the heart.
+
+    The phantom consists of alternating layers of blood and myocardium along
+    the propagation path.
 
     Parameters
     ----------
     dim : tuple, optional
-        [description], by default (0.01, 0.01, 0.1)
-    zthick : [type], optional
-        [description], by default 2e-3
+        The dimensions of the phantom in (x, y, z). Default is (0.01, 0.01, 0.1)
+    zthick : float, optional
+        The thickness of the myocardium layers in m. Default is 2e-3.
     dz : float, optional
-        [description], by default 0.01
+        The spacing between myocardium layers in m. Default is 0.01
     blood_att : float, optional
-        [description], by default 14.0
+        The attenuation coefficient of blood in Np/m. Default is 14.0
     myo_att : float, optional
-        [description], by default 58.0
-    ns : [type], optional
-        [description], by default 5e6
+        The attenuation coefficient of myocardium in Np/m. Default is 58.0
+    ns : float, optional
+        The scatterer density in number of scatterers per m^3. Default is 5e6
 
     Returns
     -------
-    [type]
+    phantom : dict
         [description]
     '''
     # att_blood = 0.14 * 100  # 0.14 Np/cm which is about 1.25 dB/cm
