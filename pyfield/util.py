@@ -1,6 +1,4 @@
-'''
-Utility functions.
-'''
+'''Utility functions.'''
 import numpy as np
 import scipy as sp
 import scipy.signal
@@ -90,23 +88,26 @@ def distance(*args):
 
 def gausspulse(fc, fbw, fs, sym=True):
     '''
-    [summary]
+    Gaussian pulse generator.
 
     Parameters
     ----------
-    fc : [type]
-        [description]
-    fbw : [type]
-        [description]
-    fs : [type]
-        [description]
+    fc : float
+        The center frequency in Hz.
+    fbw : float
+        The fractional bandwidth.
+    fs : float
+        The sampling frequency in Hz.
     sym : bool, optional
-        [description], by default True
+        If True, returns a symmetric pulse. Otherwise, returns an
+        anti-symmetric pulse. Default is True.
 
     Returns
     -------
-    [type]
-        [description]
+    pulse : ndarray
+        The pulse.
+    t : ndarray
+        The time sampling points in seconds.
     '''
     cutoff = scipy.signal.gausspulse('cutoff', fc=fc, bw=fbw, tpr=-100, bwr=-3)
     adj_cutoff = np.ceil(cutoff * fs) / fs
@@ -124,11 +125,11 @@ def nextpow2(n):
     return 2**int(np.ceil(np.log2(n)))
 
 
-def envelope(rf_data, N=None, axis=-1):
-    return np.abs(scipy.signal.hilbert(np.atleast_2d(rf_data), N, axis=axis))
+def envelope(rfdata, N=None, axis=-1):
+    return np.abs(scipy.signal.hilbert(np.atleast_2d(rfdata), N, axis=axis))
 
 
-def qbutter(x, fn, fs=1, btype='lowpass', n=4, plot=False, axis=-1):
+def qbutter(x, fn, fs=1, btype='lowpass', n=4, axis=-1):
 
     wn = fn / (fs / 2.)
     b, a = sp.signal.butter(n, wn, btype)
@@ -137,14 +138,7 @@ def qbutter(x, fn, fs=1, btype='lowpass', n=4, plot=False, axis=-1):
     return fx
 
 
-def qfirwin(x,
-            fn,
-            fs=1,
-            btype='lowpass',
-            ntaps=80,
-            plot=False,
-            axis=-1,
-            window='hamming'):
+def qfirwin(x, fn, fs=1, btype='lowpass', ntaps=80, axis=-1, window='hamming'):
     if btype.lower() in ('lowpass', 'low'):
         pass_zero = 1
     elif btype.lower() in ('bandpass', 'band'):
@@ -162,7 +156,6 @@ def qfirwin(x,
 def qfft(s, nfft=None, fs=1):
 
     s = np.atleast_2d(s)
-
     nsig, nsample = s.shape
 
     if nfft is None:
@@ -210,32 +203,6 @@ def set_axes_equal(ax):
     ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
 
 
-# def qfft(s, nfft=None, fs=1, dr=100, fig=None, **kwargs):
-#     '''
-#     Quick FFT plot. Returns frequency bins and FFT in dB.
-#     '''
-#     s = np.atleast_2d(s)
-
-#     nsig, nsample = s.shape
-
-#     if nfft is None:
-#         nfft = nsample
-
-#     if nfft > nsample:
-#         s = np.pad(s, ((0, 0), (0, nfft - nsample)), mode='constant')
-#     elif nfft < nsample:
-#         s = s[:, :nfft]
-
-#     ft = sp.fftpack.fft(s, axis=1)
-#     freqs = sp.fftpack.fftfreq(nfft, 1 / fs)
-
-#     ftdb = 20 * np.log10(np.abs(ft) / (np.max(np.abs(ft), axis=1)[..., None]))
-#     ftdb[ftdb < -dr] = -dr
-
-#     cutoff = (nfft + 1) // 2
-
-#     return freqs[:cutoff], ftdb[:, :cutoff]
-
 # def concatenate_with_padding(rf_data, t0s, fs, axis=-1):
 
 #     if len(rf_data) <= 1:
@@ -269,7 +236,7 @@ def sum_with_padding(rfdata, t0s=None, fs=1, axis=-1):
 
     The arrays must have the same shape, except in the dimension corresponding
     to `axis` which is assumed to represent time. The time axis is zero-padded
-    acoordingly to align the arrays.
+    accordingly to align the arrays.
 
     Parameters
     ----------
@@ -322,34 +289,8 @@ def sum_with_padding(rfdata, t0s=None, fs=1, axis=-1):
     return sumrf, mint0
 
 
-# def sum_with_padding(rf_data, t0s, fs):
-
-#     if len(rf_data) <= 1:
-#         return np.atleast_2d(rf_data[0]), t0s[0]
-
-#     rf_data = np.atleast_2d(*rf_data)
-
-#     mint0 = min(t0s)
-#     frontpads = [int(np.ceil((t - mint0) * fs)) for t in t0s]
-#     maxlen = max([fpad + rf.shape[1] for fpad, rf in zip(frontpads, rf_data)])
-#     backpads = [
-#         maxlen - (fpad + rf.shape[1]) for fpad, rf in zip(frontpads, rf_data)
-#     ]
-
-#     new_data = []
-
-#     for rf, fpad, bpad in zip(rf_data, frontpads, backpads):
-
-#         new_rf = np.pad(rf, ((0, 0), (fpad, bpad)), mode='constant')
-#         new_data.append(new_rf)
-
-#     return np.sum(new_data, axis=0), mint0
-
-
 def memoize(func):
-    '''
-    Simple memoizer to cache repeated function calls.
-    '''
+    '''Simple memoizer to cache repeated function calls.'''
     def ishashable(obj):
         try:
             hash(obj)
@@ -373,14 +314,21 @@ def memoize(func):
     return decorator
 
 
-# def xdc_get_area(file_path):
-#     '''
-#     '''
-#     with np.load(file_path) as varz:
-#         info = varz['info']
-#         widths = info[2, :]
-#         heights = info[3, :]
+def xdc_get_area(rect):
+    '''
+    Surface area of aperture defined in Field II.
 
-#     area = np.sum(widths * heights)
+    Parameters
+    ----------
+    rect : ndarray, 2-D
+        Rectangles info as returned by `xdc_get`.
 
-#     return area
+    Returns
+    -------
+    float
+        The surface area.
+    '''
+    widths = rect[2, :]
+    heights = rect[3, :]
+
+    return np.sum(widths * heights)

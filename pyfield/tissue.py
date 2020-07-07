@@ -1,5 +1,4 @@
-'''
-'''
+'''Functions for modeling tissue backscatter in Field II.'''
 import numpy as np
 import scipy as sp
 import scipy.signal
@@ -99,10 +98,13 @@ def calc_path_att(r0, r1, phantom, info=False):
     '''
     r0, r1 = np.atleast_1d(r0, r1)
     eps = np.finfo(np.float64).eps
-    Dx, Dy, Dz = (r1 - r0).astype(np.float64)
     x0, y0, z0 = r0.astype(np.float64)
     x1, y1, z1 = r1.astype(np.float64)
 
+    # calculate displacement in x, y, z
+    Dx, Dy, Dz = (r1 - r0).astype(np.float64)
+
+    # flag whether or not any of the displacements are zero
     xflag = abs(Dx) < eps
     yflag = abs(Dy) < eps
     zflag = abs(Dz) < eps
@@ -112,7 +114,9 @@ def calc_path_att(r0, r1, phantom, info=False):
     pz = phantom['planes_z']
     px, py, pz = np.atleast_1d(px, py, pz)
 
-    if xflag and yflag:  # line parallel to z-axis
+    # segment the path according to different cases
+    # path is parallel to z-axis
+    if xflag and yflag:
 
         def fz(z):
             x = x0
@@ -136,7 +140,9 @@ def calc_path_att(r0, r1, phantom, info=False):
         points = list(set(points))
         points.sort(key=itemgetter(2), reverse=(z1 < z0))
         points = np.array(points)
-    elif yflag and zflag:  # line parallel to x-axis
+
+    # path is parallel to x-axis
+    elif yflag and zflag:
 
         def fx(x):
             y = y0
@@ -160,7 +166,9 @@ def calc_path_att(r0, r1, phantom, info=False):
         points = list(set(points))
         points.sort(key=itemgetter(0), reverse=(x1 < x0))
         points = np.array(points)
-    elif xflag and zflag:  # line parallel to y-axis
+
+    # path is parallel to y-axis
+    elif xflag and zflag:
 
         def fy(y):
             x = x0
@@ -184,7 +192,9 @@ def calc_path_att(r0, r1, phantom, info=False):
         points = list(set(points))
         points.sort(key=itemgetter(1), reverse=(y1 < y0))
         points = np.array(points)
-    elif xflag:  # line on y-z plane
+
+    # path is on the yz plane
+    elif xflag:
         dzdy = Dz / Dy
 
         def fy(y):
@@ -223,7 +233,9 @@ def calc_path_att(r0, r1, phantom, info=False):
         points = list(set(points))
         points.sort(key=itemgetter(1), reverse=(y1 < y0))
         points = np.array(points)
-    elif yflag:  # line on x-z plane
+
+    # path is on the xz plane
+    elif yflag:
         dzdx = Dz / Dx
 
         def fx(x):
@@ -262,7 +274,9 @@ def calc_path_att(r0, r1, phantom, info=False):
         points = list(set(points))
         points.sort(key=itemgetter(0), reverse=(x1 < x0))
         points = np.array(points)
-    elif zflag:  # line on x-y plane
+
+    # path is on the xy plane
+    elif zflag:
         dydx = Dy / Dx
 
         def fx(x):
@@ -301,7 +315,9 @@ def calc_path_att(r0, r1, phantom, info=False):
         points = list(set(points))
         points.sort(key=itemgetter(0), reverse=(x1 < x0))
         points = np.array(points)
-    else:  # line in quadrant
+
+    # path is in a quadrant
+    else:
         dzdx = Dz / Dx
         dzdy = Dz / Dy
         dydx = Dy / Dx
@@ -357,15 +373,18 @@ def calc_path_att(r0, r1, phantom, info=False):
         points.sort(key=itemgetter(0), reverse=(x1 < x0))
         points = np.array(points)
 
+    # calculate path meta information
     midpoints = (points[0:-1, :] + points[1:, :]) / 2.
     path_lengths = np.zeros(midpoints.shape[0])
     att_coeffs = np.zeros(midpoints.shape[0])
 
+    # determine the attenuation coefficient along each path segment
     for idx, mp in enumerate(midpoints):
         x, y, z = mp
         path_lengths[idx] = (float(
             util.distance(points[idx, :], points[idx + 1, :])))
 
+        # determine the voxel of the phantom that the segment spans
         xarg = np.where((x - px) >= 0.0)[0][-1]
         if xarg > (px.size - 2):
             xarg = px.size - 2
@@ -378,6 +397,7 @@ def calc_path_att(r0, r1, phantom, info=False):
 
         att_coeffs[idx] = phantom[(xarg, yarg, zarg)]['att']
 
+    # calculate the total attenuation
     att_total = np.product(np.exp(-att_coeffs * path_lengths))
 
     if info:
@@ -420,10 +440,10 @@ def draw_phantom(phantom, colormap=None, ax=None, **kwargs):
     py = phantom['planes_y']
     pz = phantom['planes_z']
 
-    # draw grid/boxes
     x, y, z = np.meshgrid(px, py, pz)
     filled = np.ones((len(px) - 1, len(py) - 1, len(pz) - 1))
 
+    # determine color of each voxel
     colors = np.empty_like(filled, dtype='object')
     if colormap is None:
         colors[:] = '#ffffff00'
@@ -434,6 +454,7 @@ def draw_phantom(phantom, colormap=None, ax=None, **kwargs):
                     key = phantom[i, j, k]['material']
                     colors[i, j, k] = colormap[key]
 
+    # plot voxels
     ax.voxels(x, y, z, filled, facecolors=colors, edgecolors='gray', **kwargs)
 
     if makefig:
@@ -479,7 +500,6 @@ def draw_path_att(r0, r1, phantom, ax=None, **kwargs):
     else:
         makefig = False
 
-    # draw grid/boxes
     x, y, z = np.meshgrid(px, py, pz)
 
     # plot path
@@ -503,14 +523,6 @@ def draw_path_att(r0, r1, phantom, ax=None, **kwargs):
         return fig, ax
 
 
-'''Backscattering coefficient spectrum in units of 1/(Sr*m) of human blood at 8% hematocrit.
-Source: K. K. Shung et. al. 
-
-Returns:
-    [type]: [description]
-'''
-
-
 def bsc_human_blood():
     '''
     Backscattering coefficient spectrum of human blood.
@@ -527,7 +539,9 @@ def bsc_human_blood():
     
     References
     -------
-    .. [1] K. K. Shung et. al...
+    .. [1] K. K. Shung, R. Sigelmann, and J. Reid, “Scattering of ultrasound
+        by blood,” IEEE Transactions on Biomedical Engineering, vol. BME-23,
+        pp. 460–467, 1976.
     '''
     freqs = [0., 5e6, 7e6, 8.5e6, 10e6, 15e6]
     bsc = [0., 0.001, 0.003004, 0.005464, 0.008702, 0.06394]
@@ -585,7 +599,9 @@ def bsc_canine_myocardium():
     
     References
     -------
-    .. [1] O'Donnell et. al...
+    .. [1] M. O’Donnell, J. W. Mimbs, and J. G. Miller, “Relationship between
+        collagen and ultrasonic backscatter in myocardial tissue,” Journal of 
+        the Acoustical Society of America, vol. 69, pp. 580–588, 1981.
     '''
     freqs = [0., 2e6, 3e6, 4e6, 5e6, 6e6, 7e6, 8e6, 9e6, 10e6]
     bsc = [0., 2.4e-2, 1e-1, 3e-1, 5.4e-1, 9e-1, 1.4, 2.0, 3.0, 4.0]
@@ -642,7 +658,8 @@ def cardiac_penetration_phantom(dim=(0.01, 0.01, 0.1),
     Parameters
     ----------
     dim : tuple, optional
-        The dimensions of the phantom in (x, y, z). Default is (0.01, 0.01, 0.1)
+        The dimensions of the phantom in (x, y, z).
+        Default is (0.01, 0.01, 0.1)
     zthick : float, optional
         The thickness of the myocardium layers in m. Default is 2e-3.
     dz : float, optional
@@ -658,14 +675,17 @@ def cardiac_penetration_phantom(dim=(0.01, 0.01, 0.1),
     -------
     phantom : dict
         [description]
-    '''
-    # att_blood = 0.14 * 100  # 0.14 Np/cm which is about 1.25 dB/cm
-    # att_heart = 0.58 * 100  # 0.58 Np/cm which is about 5 dB/cm
-    # zthick = 0.002
 
+    Notes
+    -------
+    Default attenuation coefficient values were determined from literature
+    for blood and myocardium at low ultrasonic frequencies. Blood alpha is
+    around 14 Np/m which is about 1.25 dB/cm. Myocardium alpha is around
+    58 Np/m which is about 5 dB/cm.
+    '''
     length_x, length_y, length_z = dim
 
-    # define phantom geometry
+    # define phantom geometry by segmenting planes along each axis
     planes_x = [-length_x / 2, length_x / 2]
     planes_y = [-length_x / 2, length_x / 2]
     planes_z = [0.0, 0.001]
@@ -674,6 +694,7 @@ def cardiac_penetration_phantom(dim=(0.01, 0.01, 0.1),
         planes_z.append(i)
         planes_z.append(i + zthick)
 
+    # generate the phantom definition
     phantom = {}
     for i in range(len(planes_x) - 1):
         for j in range(len(planes_y) - 1):
