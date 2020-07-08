@@ -14,28 +14,25 @@ except ImportError:
 
 class PyField(object):
     '''
-    [summary]
-
-    Parameters
-    ----------
-    object : [type]
-        [description]
+    A Field II instance. Class methods implement an identical interface to
+    the MATLAB version.
     '''
     def __init__(self, path=None, quiet=False):
         '''
-        [summary]
+        Starts a new MATLAB session.
 
         Parameters
         ----------
-        path : [type], optional
-            [description], by default None
+        path : str, optional
+            [description]. Default is None.
         quiet : bool, optional
-            [description], by default False
+            If True, redirects print output of Field II to a string buffer. 
+            Default is False.
 
         Raises
         ------
         matlab.engine.EngineError
-            [description]
+            If MATLAB Engine fails to start.
         '''
         # set default path to location of m-files (where this module is)
         if path is None:
