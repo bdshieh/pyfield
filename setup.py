@@ -1,16 +1,16 @@
-## interaction / setup.py
-'''
-Setup script to compile cython files. To compile, use:
-'python setup.py build_ext --inplace'
+'''Setup script
 
-Author: Bernard Shieh (bshieh@gatech.edu)
+Author
+-------
+
+Bernard Shieh (bernard.shieh@eng.ox.ac.uk)
 '''
 # from distutils.core import setup, Extension
 from setuptools import setup, find_packages
-from setuptools.extension import Extension
+# from setuptools.extension import Extension
 
-import numpy as np
-import os
+# import numpy as np
+# import os
 
 setup(
     name='pyfield',
@@ -20,4 +20,7 @@ setup(
         'pyfield.core': ['*.m', '*.mat', '*.pdf', '*.mexw64', '*.mexa64']
     },
     #   entry_points={'console_scripts': ['pyfield = pyfield.cli:main']},
-    install_requires=['numpy', 'scipy', 'pytest'])
+    install_requires=['numpy', 'scipy', 'pytest'],
+    extras_require={
+        'interactive': ['matplotlib', 'jupyter', 'tqdm', 'ipywidgets']
+    })

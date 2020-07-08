@@ -4,6 +4,8 @@ import scipy as sp
 import scipy.signal
 import scipy.fftpack
 from scipy.spatial.distance import cdist
+from matplotlib import pyplot as plt, patches
+from mpl_toolkits.mplot3d import Axes3D, art3d
 
 # def meshview(v1, v2, v3, mode='cartesian', as_list=True):
 
@@ -333,3 +335,59 @@ def xdc_get_area(rect):
     heights = rect[3, :]
 
     return np.sum(widths * heights)
+
+
+def xdc_draw(rect, ax=None):
+    '''
+    Draw mathematical elements of aperture.
+
+    Parameters
+    ----------
+    rect : ndarray, 2-D
+        Rectangles info as returned by `xdc_get`.
+    ax : `matplotlib.axes.Axes`, optional
+        The axes to plot to. Default is None.
+
+    Returns
+    -------
+    fig : `matplotlib.figure.Figure`
+        Only returned if `ax` is None.
+    ax : `matplotlib.axes.Axes`
+        Only returned if `ax` is None.
+    '''
+    verts = rect[10:22, :]
+    widths = rect[2, :]
+    heights = rect[3, :]
+    centers = rect[7:10, :]
+
+    nelement = rect.shape[1]
+
+    if ax is None:
+        makefig = True
+        fig = plt.figure(figsize=(8, 8))
+        ax = fig.add_subplot(111, projection='3d')
+    else:
+        makefig = False
+
+    verts_x = verts[[0, 3, 6, 9], :]
+    verts_y = verts[[1, 4, 7, 10], :]
+    max_dim = max(abs(verts_x.min()), abs(verts_x.max()), abs(verts_y.min()),
+                  abs(verts_y.max()))
+    max_dim *= 1.05  # pad maxdim by 5%
+
+    for i in range(nelement):
+        w, h = widths[i], heights[i]
+        patch = patches.Rectangle(width=w,
+                                  height=h,
+                                  xy=(centers[0, i] - w / 2,
+                                      centers[1, i] - h / 2),
+                                  ec='black',
+                                  fill=False)
+        ax.add_patch(patch)
+        art3d.pathpatch_2d_to_3d(patch, z=0, zdir='z')
+
+    ax.auto_scale_xyz([-max_dim, max_dim], [-max_dim, max_dim],
+                      [0, max_dim * 2])
+
+    if makefig:
+        return fig, ax
