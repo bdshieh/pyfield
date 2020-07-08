@@ -9,6 +9,7 @@ PyField also provides a simulation framework for absolute backscattering coeffic
 Installation is supported using [pip](https://pip.pypa.io/en/stable/).
 
 **Python environment**
+
 The python version must be supported by the version of the MATLAB installation (R2020a supports both Python 3.6 and 3.7, but older versions may not). The easiest way to ensure the right python version is used is to create a virtualenv with the python version explicitly declared, such as in [conda](https://docs.conda.io/en/latest/):
 ``` sh
 conda create -n myenv python=3.6
@@ -24,11 +25,13 @@ pip install .
 ```
 
 **Install PyField from the remote repository**
+
 ``` sh
 pip install git+https://github.com/bdshieh/pyfield.git
 ```
 
 **Install the MATLAB Engine API for Python**
+
 Navigate to the MATLAB installation (located at $matlabroot) and run setup.
 
 ``` sh
@@ -36,18 +39,20 @@ cd $matlabroot/extern/engines/python/
 python setup.py install
 ```
 
-Please refer to the following for help installing on different operating systems or without root priviledges:
+Please refer to the following for help installing on different operating systems or without root privileges:
 [Install MATLAB Engine API for Python](https://uk.mathworks.com/help/matlab/matlab_external/install-the-matlab-engine-for-python.html)
 [Install MATLAB Engine API for Python in Nondefault Locations](https://uk.mathworks.com/help/matlab/matlab_external/install-matlab-engine-api-for-python-in-nondefault-locations.html)
 
 
 ## Tests
+
 To test the integrity of the installation, use pytest:
 ``` sh
 pytest --pyargs pyfield
 ```
 
 ## Usage
+
 Usage and syntax are nearly identical to the MATLAB version of Field II. For example, to calculate the spatial impulse response of a 32-element linear array:
 ``` python
 from pyfield import PyField
@@ -74,6 +79,7 @@ field.field_end()
 For more in depth usage, please check out the interactive [examples](examples/) which can be run in a [jupyter](https://jupyter.org/) session.
 
 ## License
+
 [MIT](https://choosealicense.com/licenses/mit/)
 
 ## References
