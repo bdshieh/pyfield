@@ -10,5 +10,9 @@ setup(
         'pyfield.core': ['*.m', '*.mat', '*.pdf', '*.mexw64', '*.mexa64']
     },
     #   entry_points={'console_scripts': ['pyfield = pyfield.cli:main']},
-    install_requires=['numpy', 'scipy', 'matplotlib', 'pytest'],
-    extras_require={'interactive': ['jupyter', 'tqdm', 'ipywidgets']})
+    install_requires=[
+        'numpy', 'scipy', 'matplotlib', 'pytest', 'jupyter', 'tqdm',
+        'ipywidgets'
+    ],
+    # extras_require={'interactive': []}
+)
