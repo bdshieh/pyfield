@@ -1,9 +1,7 @@
-'''
-'''
+'''pyfield tester'''
 import pytest
 import numpy as np
-from pyfield import PyField
-from pyfield import util
+from pyfield import PyField, util
 
 
 @pytest.fixture

@@ -1,10 +1,15 @@
 '''Implements Field II using the MATLAB Engine API for Python.'''
 import numpy as np
-import matlab
-import matlab.engine
 import time
 import io
 import os
+import warnings
+
+try:
+    import matlab
+    import matlab.engine
+except ImportError:
+    warnings.warn('Failed to import MATLAB engine module')
 
 
 class PyField(object):
